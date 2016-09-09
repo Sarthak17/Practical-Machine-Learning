@@ -1,0 +1,76 @@
+---
+title: "Practical Machine John Hopkins Course Project"
+author: "Sarthak Dabas"
+date: "September 9, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+library(caret)
+library(ggplot2)
+library(doParallel)
+#import data
+
+data<-read.csv("C:\\Users\\Sarthak\\Desktop\\Coursera\\Rcourse\\FitBit\\pml-training.csv")
+test<-read.csv("C:\\Users\\Sarthak\\Desktop\\Coursera\\Rcourse\\FitBit\\pml-testing.csv")
+names(data)
+summary(data)
+summary(test)
+#Clean and preprocess
+
+# Remove the first 7 variables which contain information related to the experiment as they will not be useful for model
+data <- data[,-c(1:7)]
+
+# Removing NA
+NAvalues <- sapply(data, function (x) any(is.na(x) | x == ""))
+data <- data[, names(NAvalues[!NAvalues])]
+#stndardize(center and scale) only numerical data
+numeric_cols <- which(lapply(data, class) %in% "numeric")
+preObj <- preProcess(data[, numeric_cols], method=c('bagImpute', 'center', 'scale'))
+TR1 <- predict(preObj, data[, numeric_cols])
+TR1$classe<-data$classe
+test <-predict(preObj, data[, numeric_cols])
+
+#Data partition
+
+set.seed(12345)
+
+inTrain <- createDataPartition(data$classe, p = 0.75, list = FALSE)
+training <- data[inTrain, ]
+validation <- data[-inTrain, ]
+
+#Parallelization
+
+cl<-makeCluster(detectCores())
+registerDoParallel(cl)
+
+#57.8 minutes
+start.time <- Sys.time()
+modelfit <- train(classe ~ ., mehtod = "rf", data = training)
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
+modelfit$finalModel
+
+training_predictions <- predict(modelfit, training)
+confusionMatrix(training_predictions, training$classe)
+
+validation_predictions <- predict(modelfit, validation)
+confusionMatrix(validation_predictions, validation$classe)
+
+#predicting on test set
+predictions <- predict(modelfit, test)
+predictions
+#write file
+pml_write_files = function(x){
+        n = length(x)
+        for(i in 1:n){
+                filename = paste0("problem_id_",i,".txt")
+                write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+        }
+}
+
+pml_write_files(predictions)
