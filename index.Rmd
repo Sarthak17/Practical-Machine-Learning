@@ -1,17 +1,26 @@
----
-title: "Practical Machine John Hopkins Course Project"
-author: "Sarthak Dabas"
-date: "September 9, 2016"
-output: html_document
----
+#Introduction: Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+#In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
 
+#Datasets:
+#The training data for this project are available here:
+
+#https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+#The test data are available here:
+
+#https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+#Goal:
+#The goal of my project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with.
+
+#You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases. 
+
+#Libraries used
 library(caret)
 library(ggplot2)
 library(doParallel)
+
 #import data
 
 data<-read.csv("C:\\Users\\Sarthak\\Desktop\\Coursera\\Rcourse\\FitBit\\pml-training.csv")
@@ -34,6 +43,15 @@ TR1 <- predict(preObj, data[, numeric_cols])
 TR1$classe<-data$classe
 test <-predict(preObj, data[, numeric_cols])
 
+
+#Preprocessing
+#testing variables for near zero variance 
+nzv<- nearZeroVar(data, saveMetrics= TRUE);
+nzv;
+nzv<- nearZeroVar(data);
+if(length(nzv)!=0){
+  data <- data[,-nzv]
+}
 #Data partition
 
 set.seed(12345)
@@ -48,6 +66,7 @@ cl<-makeCluster(detectCores())
 registerDoParallel(cl)
 
 #57.8 minutes
+#I am using random forests because of getting highest accuracy 
 start.time <- Sys.time()
 modelfit <- train(classe ~ ., mehtod = "rf", data = training)
 end.time <- Sys.time()
@@ -55,16 +74,19 @@ time.taken <- end.time - start.time
 time.taken
 modelfit$finalModel
 
+#Training the model
 training_predictions <- predict(modelfit, training)
 confusionMatrix(training_predictions, training$classe)
 
+#Testing the model
 validation_predictions <- predict(modelfit, validation)
 confusionMatrix(validation_predictions, validation$classe)
 
 #predicting on test set
 predictions <- predict(modelfit, test)
 predictions
-#write file
+
+#write file in order to submit on GitHub
 pml_write_files = function(x){
         n = length(x)
         for(i in 1:n){
